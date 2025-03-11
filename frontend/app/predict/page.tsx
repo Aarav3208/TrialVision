@@ -39,6 +39,8 @@ export default function PredictPage() {
     }
   }>(null)
 
+  const [clinicalReport, setClinicalReport] = useState<string | null>(null);
+
   const handleInputChange = (field: string, value: string) => {
     setFormData({
       ...formData,
@@ -51,40 +53,35 @@ export default function PredictPage() {
     setIsLoading(true)
 
     try {
-      // Mock API call - replace with actual API endpoint
-      // const response = await fetch('/api/predict', {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //   },
-      //   body: JSON.stringify(formData),
-      // })
-      // const data = await response.json()
-
-      // Mock response for demonstration
-      const mockResponse = {
-        prediction: Math.random() > 0.5 ? "Completed" : "Not Completed",
-        explanation: {
-          top_contributing_features: [
-            { feature: "enrollment", impact: 0.32 },
-            { feature: "criteria", impact: -0.28 },
-            { feature: "Intervention_Model", impact: 0.21 },
-            { feature: "study_title", impact: 0.18 },
-            { feature: "condition", impact: -0.15 },
-          ],
-          interpretation: `The model predicted ${Math.random() > 0.5 ? "Completed" : "Not Completed"}. The enrollment size had a positive impact on completion probability. The complexity of eligibility criteria had a negative impact. The intervention model showed a moderate positive contribution. The study title clarity contributed positively. The specific condition being studied had a slight negative impact.`,
+      // Call our Next.js API route instead of directly calling the FastAPI backend
+      const response = await fetch('/api/predict', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify(formData),
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `API error: ${response.status}`);
       }
-
-      // Set the prediction result
-      setPredictionResult(mockResponse)
+      
+      const data = await response.json()
+      setPredictionResult(data)
       setActiveTab("results")
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error submitting form:", error)
+      // Show error message to user
+      alert(`Error: ${error.message || "Failed to connect to prediction service"}`);
     } finally {
       setIsLoading(false)
     }
   }
+
+  const handleReportGenerated = (report: string) => {
+    setClinicalReport(report);
+  };
 
   return (
     <div className="container mx-auto py-10 px-4 max-w-5xl">
@@ -120,7 +117,7 @@ export default function PredictPage() {
                       id="study_title"
                       placeholder="Enter the full title of the study"
                       value={formData.study_title}
-                      onChange={(e) => handleInputChange("study_title", e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("study_title", e.target.value)}
                       required
                     />
                   </div>
@@ -132,7 +129,7 @@ export default function PredictPage() {
                       placeholder="Enter the inclusion and exclusion criteria"
                       className="min-h-[100px]"
                       value={formData.criteria}
-                      onChange={(e) => handleInputChange("criteria", e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange("criteria", e.target.value)}
                       required
                     />
                   </div>
@@ -145,7 +142,7 @@ export default function PredictPage() {
                         type="number"
                         placeholder="Number of participants"
                         value={formData.enrollment}
-                        onChange={(e) => handleInputChange("enrollment", e.target.value)}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("enrollment", e.target.value)}
                         required
                       />
                     </div>
@@ -154,7 +151,7 @@ export default function PredictPage() {
                       <Label htmlFor="allocation">Allocation</Label>
                       <Select
                         value={formData.Allocation}
-                        onValueChange={(value) => handleInputChange("Allocation", value)}
+                        onValueChange={(value: string) => handleInputChange("Allocation", value)}
                       >
                         <SelectTrigger id="allocation">
                           <SelectValue placeholder="Select allocation type" />
@@ -173,7 +170,7 @@ export default function PredictPage() {
                       <Label htmlFor="intervention_model">Intervention Model</Label>
                       <Select
                         value={formData.Intervention_Model}
-                        onValueChange={(value) => handleInputChange("Intervention_Model", value)}
+                        onValueChange={(value: string) => handleInputChange("Intervention_Model", value)}
                       >
                         <SelectTrigger id="intervention_model">
                           <SelectValue placeholder="Select model type" />
@@ -209,7 +206,7 @@ export default function PredictPage() {
                     <Label htmlFor="primary_purpose">Primary Purpose</Label>
                     <Select
                       value={formData.Primary_Purpose}
-                      onValueChange={(value) => handleInputChange("Primary_Purpose", value)}
+                      onValueChange={(value: string) => handleInputChange("Primary_Purpose", value)}
                     >
                       <SelectTrigger id="primary_purpose">
                         <SelectValue placeholder="Select primary purpose" />
@@ -233,7 +230,7 @@ export default function PredictPage() {
                       id="intervention"
                       placeholder="Describe the intervention(s) being tested"
                       value={formData.intervention}
-                      onChange={(e) => handleInputChange("intervention", e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange("intervention", e.target.value)}
                       required
                     />
                   </div>
@@ -244,7 +241,7 @@ export default function PredictPage() {
                       id="condition"
                       placeholder="Describe the condition(s) being studied"
                       value={formData.condition}
-                      onChange={(e) => handleInputChange("condition", e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange("condition", e.target.value)}
                       required
                     />
                   </div>
@@ -262,45 +259,20 @@ export default function PredictPage() {
 
         <TabsContent value="results">
           {predictionResult && (
-            <div className="space-y-6">
-              <PredictionResult result={predictionResult} />
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <MessageSquare className="h-5 w-5" />
-                    AI Analysis
-                  </CardTitle>
-                  <CardDescription>Additional insights about your clinical trial from our AI assistant</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ChatInterface trialData={formData} predictionResult={predictionResult} />
-                </CardContent>
-              </Card>
-
-              <div className="flex justify-between">
-                <Button variant="outline" onClick={() => setActiveTab("form")}>
-                  Edit Trial Information
-                </Button>
-                <Button
-                  onClick={() => {
-                    setFormData({
-                      study_title: "",
-                      criteria: "",
-                      enrollment: "",
-                      Allocation: "",
-                      Intervention_Model: "",
-                      Masking: "",
-                      Primary_Purpose: "",
-                      intervention: "",
-                      condition: "",
-                    })
-                    setPredictionResult(null)
-                    setActiveTab("form")
-                  }}
-                >
-                  Start New Prediction
-                </Button>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div>
+                <PredictionResult 
+                  result={predictionResult} 
+                  onReportGenerated={handleReportGenerated}
+                />
+              </div>
+              <div>
+                <h3 className="text-lg font-medium mb-4">Ask AI Assistant</h3>
+                <ChatInterface 
+                  trialData={formData} 
+                  predictionResult={predictionResult} 
+                  clinicalReport={clinicalReport}
+                />
               </div>
             </div>
           )}
